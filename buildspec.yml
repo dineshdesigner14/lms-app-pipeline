@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  variables:
+    EC2_USER: ec2-user
+    EC2_HOST: "13.234.67.225" #Dev - "13.234.67.225" # Test "13.126.27.54" #Prod - "3.111.34.166"
+    DEPL_DIR: "LMS_DEV" # LMS_PROD or test - LMS_TEST
+    APP_NAME: lmsapieng
+    APP_PORT: "4008"
+  secrets-manager:
+    EC2_SSH_KEY: "lms/ec2/sshkey"
+
+phases:
+  install:
+    runtime-versions:
+      golang: 1.21
+
+  build:
+    commands:
+      - echo "START BUILD"
+      - export BIN_FILE_NAME=${APP_NAME}_${APP_PORT}
+      - echo "BIN=${BIN_FILE_NAME}"
+      - go version
+      - go build -tags ${BIN_FILE_NAME} -o ${BIN_FILE_NAME}
+      - echo "${EC2_SSH_KEY}" > key.pem
+      - chmod 600 key.pem
+      - ls -al
+      - scp -o StrictHostKeyChecking=no -i key.pem ${BIN_FILE_NAME} ${EC2_USER}@${EC2_HOST}:/tmp/
+      - scp -o StrictHostKeyChecking=no -i key.pem deploy.sh ${EC2_USER}@${EC2_HOST}:/home/ec2-user/$DEPL_DIR/
+      - ssh -o StrictHostKeyChecking=no -i key.pem ${EC2_USER}@${EC2_HOST} "cd /home/ec2-user/${DEPL_DIR}/ && chmod +x deploy.sh && ./deploy.sh ${APP_NAME} ${APP_PORT} ${DEPL_DIR}"
+      - rm -f key.pem
+
+artifacts:
+  files:
+    - "**/*"

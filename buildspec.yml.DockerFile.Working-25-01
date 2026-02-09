@@ -1,0 +1,56 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: ap-south-1
+    ACCOUNT_ID: 224954677624
+    ECR_REPO: lms-api
+    CONTAINER_NAME: lms-api
+    APP_PORT: "4008"
+    EC2_USER: ec2-user
+    EC2_HOST: "13.126.27.54"
+
+  secrets-manager:
+    EC2_SSH_KEY: "lms/ec2/sshkey"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Install phase started"
+      - docker --version
+      - jq --version || (apt-get update -y && apt-get install -y jq)
+
+  pre_build:
+    commands:
+      - echo "Logging into ECR..."
+      - ECR_URI=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_URI=$ECR_URI/$ECR_REPO:$IMAGE_TAG
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - docker build -t $IMAGE_URI .
+      - docker push $IMAGE_URI
+
+  post_build:
+    commands:
+      - echo "Deploying to EC2..."
+      - echo "$EC2_SSH_KEY" > key.pem
+      - chmod 600 key.pem
+      - |
+        ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << EOF
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
+          docker pull $IMAGE_URI
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+          docker run -d \
+            --name $CONTAINER_NAME \
+            -p $APP_PORT:$APP_PORT \
+            --restart unless-stopped \
+            -e ENV=prod \
+            $IMAGE_URI
+        EOF

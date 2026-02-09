@@ -1,0 +1,27 @@
+package securitydef
+
+const (
+	GenLMKCommand            = "GenLMK"
+	GenTMKCommand            = "GenTMK"
+	GenPVKCommand            = "GenPVK"
+	GenCVKCommand            = "GenCVK"
+	GenZMKCommand            = "GenZMK"
+	GenKEKCommand            = "GenKEK"
+	GenDEKCommand            = "GenDEK"
+	ExportKeyCommand         = "ExportKey"
+	GenTermCommKeyCommand    = "GenTermCommKey"
+	TranslatePINBlockCommand = "TranslatePINBlock"
+	GenPINBlockCommand       = "GenPINBlock"
+	GenPINCommand            = "GenPIN"
+	VerifyPINCommand         = "VerifyPIN"
+	GenCVVCommand            = "GenCVV"
+	VerifyCVVCommand         = "VerifyCVV"
+	GenNtwkCommKeyCommand    = "GenNtwkCommKey"
+	RcvNtwkCommKeyCommand    = "RcvNtwkCommKey"
+	VerifyARQCCommand        = "VerifyARQC"
+	EncryptDataCommand       = "EncryptData"
+	DecryptDataCommand       = "DecryptData"
+	RcvMACKeyCommand         = "RcvMACKey"
+	GenMACCommand            = "GenMAC"
+	VerifyMACCommand         = "VerifyMAC"
+)

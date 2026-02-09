@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1.5
+
+FROM golang:1.19 AS builder
+
+WORKDIR /src
+
+# Copy module files first for caching
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# Copy full source
+COPY . .
+
+# Build arguments
+ARG BIN_NAME
+ARG MAIN_PKG
+
+# Build Linux binary compatible with CentOS 8 & 9
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" \
+    -o /out/${BIN_NAME} ${MAIN_PKG}
+
+# Export only the binary
+FROM scratch
+COPY --from=builder /out/ /
