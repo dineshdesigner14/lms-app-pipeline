@@ -80,28 +80,28 @@ pipeline {
 
 
         stage('Deploy to App Server') {
-            steps {
-                echo "Deploying to app server..."
-                sshagent(['app-server-key']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} "
-                            aws ecr get-login-password --region ${AWS_REGION} | \
-                            docker login --username AWS --password-stdin ${ECR_REPO}
-                            docker stop lmsapieng || true
-                            docker rm lmsapieng || true
-                            docker pull ${ECR_REPO}:latest
-                            docker run -d \
-                                --name lmsapieng \
-                                --restart always \
-                                -p ${APP_PORT}:${APP_PORT} \
-                                ${ECR_REPO}:latest
-                        "
-                    '''
-                }
-            }
+         steps {
+          echo "Deploying to app server..."
+         sshagent(['app-server-key']) {
+            sh '''
+                ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} "
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${ECR_REPO}
+                    docker stop lmsapieng || true
+                    docker rm lmsapieng || true
+                    docker pull ${ECR_REPO}:latest
+                    docker run -d \
+                        --name lmsapieng \
+                        --restart always \
+                        -p ${APP_PORT}:${APP_PORT} \
+                        -e SEMBASE=/home/ec2-user/lmsapieng \
+                        -v /home/ec2-user/lmsapieng:/home/ec2-user/lmsapieng \
+                        ${ECR_REPO}:latest
+                "
+            '''
         }
     }
-
+}
     post {
         success {
             echo "Pipeline completed successfully!"
