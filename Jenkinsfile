@@ -57,17 +57,27 @@ pipeline {
             }
         }
 
-        stage('Push to ECR') {
-            steps {
-                echo "Pushing to ECR..."
-                sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ECR_REPO}
-                    docker push ${ECR_REPO}:${IMAGE_TAG}
-                    docker push ${ECR_REPO}:latest
-                '''
-            }
+
+       stage('Push to ECR') {
+         steps {
+          echo "Pushing to ECR..."
+          withCredentials([[
+            $class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: 'aws-credentials',
+            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+        ]]) {
+            sh '''
+                aws ecr get-login-password --region ${AWS_REGION} | \
+                docker login --username AWS --password-stdin ${ECR_REPO}
+                docker push ${ECR_REPO}:${IMAGE_TAG}
+                docker push ${ECR_REPO}:latest
+            '''
         }
+    }
+}
+
+
 
         stage('Deploy to App Server') {
             steps {
