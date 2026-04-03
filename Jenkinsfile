@@ -20,20 +20,23 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                echo "Running SonarQube analysis..."
-                withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT} \
-                        -Dsonar.projectName=${SONAR_PROJECT} \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://localhost:9000
-                    '''
-                }
+    stage('SonarQube Analysis') {
+       steps {
+        echo "Running SonarQube analysis..."
+        withSonarQubeEnv('sonarqube') {
+            script {
+                def scannerHome = tool 'sonar-scanner'
+                sh """
+                    ${scannerHome}/bin/sonar-scanner \
+                    -Dsonar.projectKey=${SONAR_PROJECT} \
+                    -Dsonar.projectName=${SONAR_PROJECT} \
+                    -Dsonar.sources=. \
+                    -Dsonar.host.url=http://localhost:9000
+                """
             }
         }
+    }
+} 
 
         stage('Quality Gate') {
             steps {
