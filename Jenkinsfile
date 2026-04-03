@@ -1,3 +1,4 @@
+cat > Jenkinsfile << 'EOF'
 pipeline {
     agent any
 
@@ -5,7 +6,7 @@ pipeline {
         AWS_REGION      = "us-east-1"
         ECR_REPO        = "153860374288.dkr.ecr.us-east-1.amazonaws.com/lmsapieng"
         IMAGE_TAG       = "${BUILD_NUMBER}"
-        APP_SERVER      = "10.0.0.27"
+        APP_SERVER      = "32.195.60.35"
         APP_USER        = "ec2-user"
         APP_PORT        = "4008"
         SONAR_PROJECT   = "lmsapieng"
@@ -24,13 +25,16 @@ pipeline {
             steps {
                 echo "Running SonarQube analysis..."
                 withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT} \
-                        -Dsonar.projectName=${SONAR_PROJECT} \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://localhost:9000
-                    '''
+                    script {
+                        def scannerHome = tool 'sonar-scanner'
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT} \
+                            -Dsonar.projectName=${SONAR_PROJECT} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=http://32.195.60.35:9000
+                        """
+                    }
                 }
             }
         }
@@ -57,12 +61,19 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 echo "Pushing to ECR..."
-                sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ECR_REPO}
-                    docker push ${ECR_REPO}:${IMAGE_TAG}
-                    docker push ${ECR_REPO}:latest
-                '''
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh '''
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${ECR_REPO}
+                        docker push ${ECR_REPO}:${IMAGE_TAG}
+                        docker push ${ECR_REPO}:latest
+                    '''
+                }
             }
         }
 
@@ -81,6 +92,8 @@ pipeline {
                                 --name lmsapieng \
                                 --restart always \
                                 -p ${APP_PORT}:${APP_PORT} \
+                                -e SEMBASE=/home/ec2-user/lmsapieng \
+                                -v /home/ec2-user/lmsapieng:/home/ec2-user/lmsapieng \
                                 ${ECR_REPO}:latest
                         "
                     '''
@@ -98,3 +111,4 @@ pipeline {
         }
     }
 }
+EOF
