@@ -8,6 +8,7 @@ pipeline {
         APP_SERVER      = "32.195.60.35"
         APP_USER        = "ec2-user"
         APP_PORT        = "4008"
+        SONAR_PROJECT   = "lmsapieng"
     }
 
     stages {
@@ -16,6 +17,33 @@ pipeline {
             steps {
                 echo "Cloning repo..."
                 checkout scm
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo "Running SonarQube analysis..."
+                withSonarQubeEnv('sonarqube') {
+                    script {
+                        def scannerHome = tool 'sonar-scanner'
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT} \
+                            -Dsonar.projectName=${SONAR_PROJECT} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=http://32.195.60.35:9000
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                echo "Checking SonarQube Quality Gate..."
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
