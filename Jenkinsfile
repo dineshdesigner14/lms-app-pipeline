@@ -15,14 +15,14 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo "📥 Cloning repo..."
+                echo "Cloning repo..."
                 checkout scm
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo "🔍 Running SonarQube analysis..."
+                echo "Running SonarQube analysis..."
                 withSonarQubeEnv('sonarqube') {
                     sh '''
                         sonar-scanner \
@@ -37,7 +37,7 @@ pipeline {
 
         stage('Quality Gate') {
             steps {
-                echo "✅ Checking SonarQube Quality Gate..."
+                echo "Checking SonarQube Quality Gate..."
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -46,7 +46,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo "🐳 Building Docker image..."
+                echo "Building Docker image..."
                 sh '''
                     docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                     docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
@@ -56,7 +56,7 @@ pipeline {
 
         stage('Push to ECR') {
             steps {
-                echo "📤 Pushing to ECR..."
+                echo "Pushing to ECR..."
                 sh '''
                     aws ecr get-login-password --region ${AWS_REGION} | \
                     docker login --username AWS --password-stdin ${ECR_REPO}
@@ -68,22 +68,15 @@ pipeline {
 
         stage('Deploy to App Server') {
             steps {
-                echo "🚀 Deploying to app server..."
+                echo "Deploying to app server..."
                 sshagent(['app-server-key']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} "
-                            # Login to ECR
                             aws ecr get-login-password --region ${AWS_REGION} | \
                             docker login --username AWS --password-stdin ${ECR_REPO}
-
-                            # Stop and remove old container
                             docker stop lmsapieng || true
                             docker rm lmsapieng || true
-
-                            # Pull latest image
                             docker pull ${ECR_REPO}:latest
-
-                            # Run new container
                             docker run -d \
                                 --name lmsapieng \
                                 --restart always \
@@ -98,21 +91,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed!"
+            echo "Pipeline failed!"
         }
     }
 }
-```
-
-Save this as `Jenkinsfile` in your **GitHub repo root** bro!
-
-Then in Jenkins UI create pipeline:
-```
-New Item → Pipeline → Pipeline script from SCM
-SCM: Git
-Repo URL: your github repo URL
-Branch: main
-Script Path: Jenkinsfile
