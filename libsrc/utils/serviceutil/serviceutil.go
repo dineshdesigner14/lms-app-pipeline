@@ -1,7 +1,6 @@
-iiipackage serviceutil
+package serviceutil
 
-imp
-ort (
+import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -26,7 +25,6 @@ ort (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -37,7 +35,6 @@ var serviceStartTime string
 var serviceQueueNum int
 var serviceQueueMutex = &sync.Mutex{}
 var serviceStopFlag bool
-
 
 func InitService(ModuleName string, ModuleVersion string, ServiceArgs ...string) int {
 	if !globaldef.IsAppBaseDirExists() {
@@ -62,6 +59,61 @@ func InitService(ModuleName string, ModuleVersion string, ServiceArgs ...string)
 	serviceStopFlag = false
 	serviceStartDate = dtutil.GetDate("DDMMYYYY")
 	serviceStartTime = dtutil.GetTime("HHMMSS")
+	return 1
+}
+
+func GetServiceStartDate() string {
+	return serviceStartDate
+}
+
+func GetServiceStartTime() string {
+	return serviceStartTime
+}
+
+func GetServiceName() string {
+	return serviceName
+}
+
+func GetListenPort() string {
+	return listenPort
+}
+
+func SendInitMsg(Status string) int {
+	var serviceEngReq servicedef.ServiceEngReqMsg
+	var respData []byte
+	var nodeInfo nodeconfig.NodeInfo
+	var respInfo msgdef.RespInfoStruct
+
+	serviceEngReq.Command = servicedef.ServiceEngCommand_StartServiceAck
+	serviceEngReq.ServiceName = GetServiceName()
+	serviceEngReq.ServiceID = fmt.Sprintf("%d", os.Getpid())
+	serviceEngReq.StartDate = dtutil.GetDate("DDMMYYYY")
+	serviceEngReq.StartTime = dtutil.GetTime("HHMMSS")
+	serviceEngReq.Status = Status
+	tLevel := trace.GetTraceLevel()
+	switch tLevel {
+	case debugdef.DEBUG_LEVEL_NORMAL:
+		serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_NORMAL_STR
+	case debugdef.DEBUG_LEVEL_SECURED:
+		serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_SECURED_STR
+	case debugdef.DEBUG_LEVEL_TEST:
+		serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_TEST_STR
+	case debugdef.DEBUG_LEVEL_ERROR:
+		serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_ERROR_STR
+	default:
+		serviceEngReq.DebugLevel = globaldef.NOT_INITIALIZED
+	}
+
+	reqData, _ := json.Marshal(&serviceEngReq)
+	if nodeutil.GetNodeInfo(rtutil.GetCurrentNodeName(), &nodeInfo) < 0 {
+		return -1
+	}
+	if msgutil.PostReq(moduledef.ServiceEngModule, nodeInfo.Ipaddr, nodeInfo.ServiceEngPort, nodeInfo.ServiceEngTimeout, reqData, &respData) < 0 {
+		return -1
+	}
+	if msgutil.ParseResp(respData, &respInfo) < 0 {
+		return -1
+	}
 	return 1
 }
 
@@ -90,17 +142,14 @@ func SetServiceStopFlag() {
 }
 
 func IsServiceStopFlagTrue() bool {
-	//trace.Lg("IsServiceStopFlagTrue() called")
 	serviceQueueMutex.Lock()
 	defer serviceQueueMutex.Unlock()
-	//trace.Lg("IsServiceStopFlagTrue() returned")
 	return serviceStopFlag
 }
 
 func CanServiceBeStopped() bool {
 	serviceQueueMutex.Lock()
 	defer serviceQueueMutex.Unlock()
-	//trace.Lg("serviceQueueNum:%d", serviceQueueNum)
 	if serviceStopFlag && serviceQueueNum == 0 {
 		return true
 	}
@@ -108,17 +157,14 @@ func CanServiceBeStopped() bool {
 }
 
 func SendServiceAlive(serviceName string) int {
-
 	var respData []byte
 	var respInfo msgdef.RespInfoStruct
 	reqData := []byte(`{"msg":"keepalive"}`)
 	lServicePort, _ := strconv.Atoi(genutil.GetListeningPortFromServiceName(serviceName))
 	if msgutil.PostReq(serviceName, "localhost", lServicePort, rtutil.GetServiceAliveTimeOut(serviceName), reqData, &respData, fmt.Sprintf("%s:%s", headerdef.App_Header_Type_MsgType, headerdef.App_Header_Value_HeartBeat)) < 0 {
-		//trace.Lg("PostReq() failed for service %s", serviceName)
 		return -1
 	}
 	if msgutil.ParseResp(respData, &respInfo) < 0 {
-		//trace.Lg("ParseResp() failed for service %s with respData:%s", serviceName)
 		return -1
 	}
 	return 1
@@ -130,11 +176,9 @@ func SendServiceSetDebugLevel(serviceName string, debugLevel string) int {
 	reqData := []byte(fmt.Sprintf(`{"debug_level":"%s"}`, debugLevel))
 	lServicePort, _ := strconv.Atoi(genutil.GetListeningPortFromServiceName(serviceName))
 	if msgutil.PostReq(serviceName, "localhost", lServicePort, rtutil.GetServiceAliveTimeOut(serviceName), reqData, &respData, fmt.Sprintf("%s:%s", headerdef.App_Header_Type_MsgType, headerdef.App_Header_Value_SetDebugLevel)) < 0 {
-		//trace.Lg("PostReq() failed for service %s", serviceName)
 		return -1
 	}
 	if msgutil.ParseResp(respData, &respInfo) < 0 {
-		//trace.Lg("ParseResp() failed for service %s with respData:%s", serviceName)
 		return -1
 	}
 	return 1
@@ -146,21 +190,17 @@ func SendServiceStop(serviceName string) int {
 	reqData := []byte(`{"msg":"stop-service"}`)
 	lServicePort, _ := strconv.Atoi(genutil.GetListeningPortFromServiceName(serviceName))
 	if msgutil.PostReq(serviceName, "localhost", lServicePort, rtutil.GetServiceAliveTimeOut(serviceName), reqData, &respData, fmt.Sprintf("%s:%s", headerdef.App_Header_Type_MsgType, headerdef.App_Header_Value_StopService)) < 0 {
-		//trace.Lg("PostReq() failed for service %s", serviceName)
 		return -1
 	}
 	if msgutil.ParseResp(respData, &respInfo) < 0 {
-		//trace.Lg("ParseResp() failed for service %s with respData:%s", serviceName)
 		return -1
 	}
 	return 1
 }
 
 func sendServiceIntimationMsg(HTTPResponseWriter http.ResponseWriter, HTTPRequest *http.Request) {
-	//trace.Lg("sendServiceIntimationMsg() called")
 	HTTPResponseWriter.WriteHeader(http.StatusOK)
 	HTTPResponseWriter.Write(msgutil.SetResp(msgdef.RCapproved, []byte(msgdef.RespApprovedStr), []byte(msgdef.RespApprovedStr)))
-	//trace.Lg("sendServiceIntimationMsg() sent")
 }
 
 func IsServiceIntimationMsg(HTTPResponseWriter http.ResponseWriter, HTTPRequest *http.Request) bool {
@@ -177,7 +217,6 @@ func IsServiceIntimationMsg(HTTPResponseWriter http.ResponseWriter, HTTPRequest 
 			var traceLevel int
 			RequestBody, err := ioutil.ReadAll(HTTPRequest.Body)
 			if err != nil {
-				//trace.Lg("ioutil.ReadAll() failed for request")
 				return serviceIntimationMsgFlag
 			}
 			if jsonutil.GetValueFromJSONObj(RequestBody, "debug_level", &debugLevel) < 0 {
@@ -195,13 +234,9 @@ func IsServiceIntimationMsg(HTTPResponseWriter http.ResponseWriter, HTTPRequest 
 				return serviceIntimationMsgFlag
 			}
 			trace.SetTraceLevel(traceLevel)
-			return serviceIntimationMsgFlag
 		} else if HTTPRequest.Header.Get(headerdef.App_Header_Type_MsgType) == headerdef.App_Header_Value_StopService {
-			//trace.Lg("Received stop signal...setting stop service to true")
 			SetServiceStopFlag()
-			//trace.Lg("stop service flag set to true")
 			go cleanupRoutine()
-			return serviceIntimationMsgFlag
 		}
 	}
 	return serviceIntimationMsgFlag
@@ -210,9 +245,7 @@ func IsServiceIntimationMsg(HTTPResponseWriter http.ResponseWriter, HTTPRequest 
 func cleanupRoutine() {
 	for {
 		time.Sleep(time.Second * time.Duration(5))
-		//trace.Lg("cleanupRoutine() called")
 		if CanServiceBeStopped() {
-			//trace.Lg("Stopping service:%s", GetServiceName())
 			os.Exit(globaldef.EXIT_NORMAL)
 		}
 	}
@@ -224,10 +257,8 @@ func StartHttpServer() {
 		serverKey := fmt.Sprintf("%s/%s/%s.%s.key", globaldef.GetAppBaseDir(), "config/tls/certificates/server", rtutil.GetCurrentNodeName(), serviceName)
 		cert, err := tls.LoadX509KeyPair(serverCrt, serverKey)
 		if err != nil {
-			//trace.Lg("tls.LoadX509KeyPair() failed with err:%s", err)
 			os.Exit(0)
 		}
-		//trace.Lg("tls.LoadX509KeyPair() Success")
 		config := &tls.Config{
 			Certificates:             []tls.Certificate{cert},
 			MinVersion:               tls.VersionTLS13,
@@ -239,17 +270,12 @@ func StartHttpServer() {
 			TLSConfig: config,
 		}
 		err = server.ListenAndServeTLS("", "")
-		//trace.Lg("ListenAndServeTLS() Retured with Error(%s)", err)
 		if err != nil {
-			//trace.Lg("ListenAndServeTLS() failed with error(%s)", err)
 			os.Exit(0)
 		}
 	} else {
-		//trace.Lg("(%s) Listening at Port(%s)", genutil.GetModuleName(), fmt.Sprintf(":%s", GetListenPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%s", GetListenPort()), nil)
-		//trace.Lg("ListenAndServe() Retured with Error(%s)", err)
 		if err != nil {
-			//trace.Lg("ListenAndServe() failed with error(%s)", err)
 			os.Exit(0)
 		}
 	}
