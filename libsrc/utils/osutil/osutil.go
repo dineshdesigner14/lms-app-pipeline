@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 func IsLinux() bool {
@@ -18,22 +17,7 @@ func IsLinux() bool {
 }
 
 func InitOS() int {
-	var rval int
-	os := runtime.GOOS
-	switch os {
-	case "windows":
-		rval = performWindowsInit()
-		break
-	case "darwin":
-		rval = performMACInit()
-		break
-	case "linux":
-		rval = performLinuxInit()
-		break
-	default:
-		rval = performLinuxInit()
-	}
-	return rval
+	return 1
 }
 
 func GetServiceName() string {
@@ -84,32 +68,4 @@ func IsProcessWithNameRunning(processName string, parentPid string) bool {
 		}
 	}
 	return found
-}
-
-func performWindowsInit() int {
-	return 1
-}
-
-func performMACInit() int {
-	return 1
-}
-
-func performLinuxInit() int {
-	os.Stdin.Close()
-	os.Stdout.Close()
-	os.Stderr.Close()
-	ret, _, errNo := syscall.RawSyscall(syscall.SYS_FORK, 0, 0, 0)
-	if errNo != 0 {
-		fmt.Printf("\n syscall.RawSyscall failed for syscall.SYS_FORK with errNo(%d)\n", errNo)
-		return -1
-	}
-	if ret != 0 {
-		os.Exit(0)
-	}
-	_, err := syscall.Setsid()
-	if err != nil {
-		fmt.Printf("\n syscall.Setsid() failed with err(%s)\n", err)
-		return -1
-	}
-	return 1
 }

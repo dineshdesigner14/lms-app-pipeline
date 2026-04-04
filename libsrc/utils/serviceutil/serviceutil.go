@@ -1,6 +1,7 @@
-package serviceutil
+iiipackage serviceutil
 
-import (
+imp
+ort (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -37,41 +38,23 @@ var serviceQueueNum int
 var serviceQueueMutex = &sync.Mutex{}
 var serviceStopFlag bool
 
+
 func InitService(ModuleName string, ModuleVersion string, ServiceArgs ...string) int {
-	var rval int
 	if !globaldef.IsAppBaseDirExists() {
 		fmt.Printf("\nIsAppBaseDirExists() failed.failed....\n")
 		return -1
-	}
-	if len(ServiceArgs) > 0 {
-		if !strings.EqualFold(ServiceArgs[0], "Parent") {
-			_, err := syscall.Setsid()
-			if err != nil {
-				fmt.Printf("\n syscall.Setsid() failed with err(%s)\n", err)
-				return -1
-			}
-		}
-	} else {
-		_, err := syscall.Setsid()
-		if err != nil {
-			fmt.Printf("\n syscall.Setsid() failed with err(%s)\n", err)
-			return -1
-		}
 	}
 	serviceName = osutil.GetServiceName()
 	if trace.OpenTrace(serviceName, serviceName) < 0 {
 		fmt.Printf("\nOpenTrace() failed for processName(%s)\n", serviceName)
 		return -1
 	}
-	//trace.Lg("Service(%s) with Version(%s) Started....", serviceName, ModuleVersion)
 	genutil.SetModule(serviceName, ModuleName, ModuleVersion)
 	rval, listenPort = genutil.GetListeningPort()
 	if rval < 0 {
-		//trace.Lg("GetListeningPort() failed for Service(%s)", os.Args[0])
 		return -1
 	}
 	if rtutil.LoadAppConfig() < 0 {
-		//trace.Lg("LoadAppConfig() failed for Service(%s)", os.Args[0])
 		return -1
 	}
 	trace.SetTraceLevel(rtutil.GetServiceDebugLevel(serviceName))
@@ -79,75 +62,6 @@ func InitService(ModuleName string, ModuleVersion string, ServiceArgs ...string)
 	serviceStopFlag = false
 	serviceStartDate = dtutil.GetDate("DDMMYYYY")
 	serviceStartTime = dtutil.GetTime("HHMMSS")
-	return 1
-}
-
-func GetServiceStartDate() string {
-	return serviceStartDate
-}
-
-func GetServiceStartTime() string {
-	return serviceStartTime
-}
-
-func GetServiceName() string {
-	return serviceName
-}
-
-func GetListenPort() string {
-	return listenPort
-}
-
-func SendInitMsg(Status string) int {
-	var serviceEngReq servicedef.ServiceEngReqMsg
-	var respData []byte
-	var nodeInfo nodeconfig.NodeInfo
-	var respInfo msgdef.RespInfoStruct
-
-	serviceEngReq.Command = servicedef.ServiceEngCommand_StartServiceAck
-	serviceEngReq.ServiceName = GetServiceName()
-	serviceEngReq.ServiceID = fmt.Sprintf("%d", os.Getpid())
-	serviceEngReq.StartDate = dtutil.GetDate("DDMMYYYY")
-	serviceEngReq.StartTime = dtutil.GetTime("HHMMSS")
-	serviceEngReq.Status = Status
-	tLevel := trace.GetTraceLevel()
-	switch tLevel {
-	case debugdef.DEBUG_LEVEL_NORMAL:
-		{
-			serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_NORMAL_STR
-			break
-		}
-	case debugdef.DEBUG_LEVEL_SECURED:
-		{
-			serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_SECURED_STR
-			break
-		}
-	case debugdef.DEBUG_LEVEL_TEST:
-		{
-			serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_TEST_STR
-			break
-		}
-	case debugdef.DEBUG_LEVEL_ERROR:
-		{
-			serviceEngReq.DebugLevel = debugdef.DEBUG_LEVEL_ERROR_STR
-			break
-		}
-	default:
-		serviceEngReq.DebugLevel = globaldef.NOT_INITIALIZED
-	}
-
-	reqData, _ := json.Marshal(&serviceEngReq)
-	if nodeutil.GetNodeInfo(rtutil.GetCurrentNodeName(), &nodeInfo) < 0 {
-		//trace.Lg("GetNodeInfo() failed for Node:%s", rtutil.GetCurrentNodeName())
-		return -1
-	}
-	if msgutil.PostReq(moduledef.ServiceEngModule, nodeInfo.Ipaddr, nodeInfo.ServiceEngPort, nodeInfo.ServiceEngTimeout, reqData, &respData) < 0 {
-		//trace.Lg("PostReq() failed for Ipaddr:%s Port:%d", nodeInfo.Ipaddr, nodeInfo.ServiceEngPort)
-		return -1
-	}
-	if msgutil.ParseResp(respData, &respInfo) < 0 {
-		return -1
-	}
 	return 1
 }
 
