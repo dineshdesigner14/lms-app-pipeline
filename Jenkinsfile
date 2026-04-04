@@ -5,7 +5,7 @@ pipeline {
         AWS_REGION      = "us-east-1"
         ECR_REPO        = "153860374288.dkr.ecr.us-east-1.amazonaws.com/lmsapieng"
         IMAGE_TAG       = "${BUILD_NUMBER}"
-        APP_SERVER      = "32.195.60.35"
+        APP_SERVER      = "34.200.232.236"
         APP_USER        = "ec2-user"
         APP_PORT        = "4008"
         SONAR_PROJECT   = "lmsapieng"
