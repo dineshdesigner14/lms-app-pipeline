@@ -5,7 +5,7 @@ pipeline {
         AWS_REGION      = "us-east-1"
         ECR_REPO        = "153860374288.dkr.ecr.us-east-1.amazonaws.com/lmsapieng"
         IMAGE_TAG       = "${BUILD_NUMBER}"
-        APP_SERVER      = "34.200.232.236"
+        APP_SERVER      = "100.24.92.126"
         APP_USER        = "ec2-user"
         APP_PORT        = "4008"
         SONAR_PROJECT   = "lmsapieng"
@@ -31,7 +31,7 @@ pipeline {
                             -Dsonar.projectKey=${SONAR_PROJECT} \
                             -Dsonar.projectName=${SONAR_PROJECT} \
                             -Dsonar.sources=. \
-                            -Dsonar.host.url=http://34.200.232.236:9000
+                            -Dsonar.host.url=http://100.24.92.126:9000
                         """
                     }
                 }
