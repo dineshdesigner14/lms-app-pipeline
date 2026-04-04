@@ -47,6 +47,7 @@ func InitService(ModuleName string, ModuleVersion string, ServiceArgs ...string)
 		return -1
 	}
 	genutil.SetModule(serviceName, ModuleName, ModuleVersion)
+	var rval int
 	rval, listenPort = genutil.GetListeningPort()
 	if rval < 0 {
 		return -1
